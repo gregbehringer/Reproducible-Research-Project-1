@@ -1,0 +1,176 @@
+Reproducible Research - Course Project 1
+==================================================
+
+## Background per assignment and data
+This assignment makes use of data from a personal activity monitoring device (Fitbit, Nike Fuelband, Jawbone Up, etc.). This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
++[The activity monitoring set may be obtained here](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip)
+
+
+
+### Basic submission outline 
+1. Code for reading in the dataset and/or processing the data
+2. Histogram of the total number of steps taken each day
+3. Mean and median number of steps taken each day
+4. Time series plot of the average number of steps taken
+5. The 5-minute interval that, on average, contains the maximum number of steps
+6. Code to describe and show a strategy for imputing missing data
+7. Histogram of the total number of steps taken each day after missing values are imputed
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
+
+
+
+```{r}
+
+#install needed packages
+
+install.packages("dplyr",repos = "http://cran.us.r-project.org")
+library(dplyr)
+install.packages("ggplot2",repos = "http://cran.us.r-project.org")
+library(ggplot2)
+
+```
+
+
+
+#### Start of assignment...:
+
++reading in the dataset and/or processing the data
+
+```{r}
+#store file paths in variables
+
+repResearchProjectZip <- "C:/Users/ghb206/Documents/DataSciTrack_JHU/repResearchProject.zip"
+repResearchURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+
+download.file(repResearchURL, repResearchProjectZip, mode = "wb")
+
+repResearchOutDir<-"C:/Users/ghb206/Documents/DataSciTrack_JHU/reproResearchDirectory"
+
+unzip(repResearchProjectZip,exdir = repResearchOutDir)
+ 
+activityFileLocation<-"C:/Users/ghb206/Documents/DataSciTrack_JHU/reproResearchDirectory/activity.csv"
+
+activityFile<-read.csv(activityFileLocation, header = TRUE)
+
+```
+
+
++now sum the data
+
+```{r}
+
+activityFileSumStepsDays <- aggregate(steps ~ date, data = activityFile, FUN = sum, na.rm = TRUE)
+
+head(activityFileSumStepsDays,3)
+
+hist(activityFileSumStepsDays$steps, main="Measured Steps per Day", xlab="Sum of Measured Steps per Day", ylab = "Relative Steps Frequency", col="#A3E4D7",breaks = 10)
+
+```
+
+
++get the mean and the median for steps taken
+
+```{r}
+
+summary(activityFileSumStepsDays$steps)
+
+```
+
+
+
++Time series plot
+
+```{r}
+
+activityFileFiveMinIntervals <- aggregate(steps ~ interval, data = activityFile, FUN = mean, na.rm = TRUE)
+
+
+plot(activityFileFiveMinIntervals$interval, activityFileFiveMinIntervals$steps, type = "l", 
+col = "#CBABE1", xlab = "Inclusive Five Minute Dataset Intervals", ylab = "Average Number of Steps per Day",
+main = "Activity Level per Day in Five Minute Intervals")
+
+```
+
++Five minute interval with the maximum number of steps
+
+```{r}
+
+activityFileFiveMinIntervals$interval[which.max(activityFileFiveMinIntervals$steps)]
+
+```
+
+
++strategy to handle missing data
+
+```{r}
+
+#check to see the source of the NA's
+
+sum(is.na(activityFile))
+sum(is.na(activityFile$steps))
+sum(is.na(activityFile$date))
+sum(is.na(activityFile$interval))
+
+#confined to the steps column, so if we want to devise a solution
+#we could take the approach that an NA means zero steps
+
+#avoid overwriting the original table by creating a new variable
+
+activityFileNAToZero<-activityFile
+
+activityFileNAToZero[is.na(activityFileNAToZero)] <- 0
+
+head(activityFileNAToZero,3)
+
+```
+
+
++Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r}
+
+head(activityFile,10)
+
+activityFileNAToZeroSum <- aggregate(steps ~ date, data = activityFileNAToZero, FUN = sum)
+
+
+hist(activityFileNAToZeroSum$steps, main = "Measured Steps per Day / NA Entries Corrected to Zero", xlab = "Sum of Measured Steps per Day / NA Corrected to Zero", ylab = "Relative Step Frequency / NA Corrected to Zero", col="#acc6ac", breaks=10)
+
+```
+
+
++Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r}
+
+#convert date column with as.Date
+
+head(activityFileNAToZero,3)
+activityFileNAToZero$date <- as.Date(activityFileNAToZero$date , "%Y-%m-%d")
+head(activityFileNAToZero,3)
+
+#now add a column with the day designation
+
+activityFileNAToZero<- activityFileNAToZero %>% mutate (dayOfWeekType = ifelse(weekdays(activityFileNAToZero$date)=="Saturday" | weekdays(activityFileNAToZero$date)=="Sunday", "Weekend", "Weekday"))
+
+#interval grouping by weekday/weekend
+
+activityFileNAToZeroDayWeekGroup <- group_by(activityFileNAToZero, dayOfWeekType, interval)
+
+activityFileNAToZeroDayWeekGroupStepNumber <- summarize(activityFileNAToZeroDayWeekGroup, steps = mean(steps))
+
+#create the plot
+
+g <- ggplot(activityFileNAToZeroDayWeekGroupStepNumber, aes(x=interval, y=steps))
+
+g  + facet_grid(dayOfWeekType~.) + geom_point(shape = 21, colour = "black", fill = "white", size = 2, stroke = 2)
+
+```
+
+
+
+
+
+
